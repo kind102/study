@@ -44,13 +44,15 @@ td {
 <script type="text/javascript">
 var tetrisArray = new Array();
 var points = 0;
-var maxRow = 14
-var maxCol = 8
+var maxRow = 14;
+var maxCol = 8;
+var timerId;
+var endGame = false;
+
+for (var i=0; i<=maxRow; i++)
+	tetrisArray[i] = new Array('0','0','0','0','0','0','0','0','0');
 
 $(function(){
-	for (var i=0; i<=maxRow; i++)
-		tetrisArray[i] = new Array('0','0','0','0','0','0','0','0','0');
-
     $('html').keydown(function(e){
 		//console.log(e.which);
         var key = e.which;
@@ -72,11 +74,9 @@ $(function(){
                 direction = 'none';
                 break;
         }
-        //setBlock(key);
-        process(key);
-       $('#keyCode').text(key);
-       $('#direction').text(direction);
-
+		process(key);
+		$('#keyCode').text(key);
+		$('#direction').text(direction);
     });
 });
 
@@ -112,36 +112,22 @@ var BLOCK = function(pRow, pCol, pColor) {
     }
 
     this.removeNowLocation = function(){
-    	//console.log("remove1 : #"+_row+_col);
     	$("#"+_row+_col).css('background', '');
-    	//console.log("remove2 : #"+_row+_col);
     }
 
     this.setLocation = function(row, col){
-    	//console.log("next move1 : ", row, col);
     	_row += row;
     	_col += col;
-    	//console.log("next move2 : ", _row, _col);
     }
 
     this.print = function(){
-    	//console.log("#"+_row+_col);
     	$("#"+_row+_col).css('background', _color);
     }
 
 };
 
-//var bo = new BLOCK(0, 0);
-
 function GROUP_BLOCK() {
-	var _kindBlock = [['0,2', '1,2', '1,3', '2,3'],
-	                  ['0,2', '1,2', '2,2', '2,3'],
-	                  ['0,2', '1,2', '2,2', '3,2'],
-	                  ['0,2', '0,3', '1,2', '1,3'],
-	                  ['0,3', '1,2', '1,3', '2,2'],
-	                  ['0,3', '1,3', '2,2', '2,3']];
-
-	var _kindBlock1 = {
+	var _kindBlock = {
 	                   0 : {
 	                	   block : ['0,2', '1,2', '1,3', '2,3'],
 	                	   turn : {
@@ -206,14 +192,13 @@ function GROUP_BLOCK() {
 
 	var _bos = [];
 	var turnState = 0;
-	var block = -1;
+	var block = Math.floor(Math.random() * 6);
 	var color = "";
 
 	this.create = function() {
-		block = Math.floor(Math.random() * 6);
-		color = _kindBlock1[block].color;
-		for (var i in  _kindBlock1[block].block) {
-			var str = _kindBlock1[block].block[i].split(",");
+		color = _kindBlock[block].color;
+		for (var i in  _kindBlock[block].block) {
+			var str = _kindBlock[block].block[i].split(",");
 			_bos[i] = new BLOCK(str[0], str[1], color);
 		}
 	}
@@ -231,21 +216,33 @@ function GROUP_BLOCK() {
     }
 
     this.getTurnDatas = function(state) {
-    	return _kindBlock1[block].turn[state];
+    	return _kindBlock[block].turn[state];
     }
 
     this.getColor = function() {
     	return color;
     }
+
+    this.getBlockInfo = function() {
+    	return _kindBlock[block].block;
+    }
 }
 
-var gbo = new GROUP_BLOCK();
-gbo.create();
+/* var gbo = new GROUP_BLOCK();
+gbo.create(); */
+var gbo;
+createBlock();
 
 function createBlock() {
+	clearInterval(timerId);
 	gbo = new GROUP_BLOCK();
-	if(checkRange(40))
+	if (createCheckRange()) {
 		gbo.create();
+		timerId = setInterval("process(40)", 1000);
+	} else {
+		gbo = null;
+		theEndTetris();
+	}
 }
 
 function process(key) {
@@ -253,20 +250,34 @@ function process(key) {
 		turnBlock();
 	else setGroupBlock(key);
 	newBlock();
-	//checkBlock();
-	checkBlock_1();
+	if (endGame === false)
+		checkBlock();
 }
 
 function setGroupBlock(key) {
 	var groupBlock = gbo.getGroupInfo();
+	var movePoint = 1;
+	if (key === 32)
+		movePoint = getMovePoint(groupBlock);
 	if (checkRange(key)) {
 		for (var i in groupBlock) {
-			actGroupBlock(groupBlock[i], key)
+			actGroupBlock(groupBlock[i], key, movePoint)
 		}
 		for (var i in groupBlock) {
 			groupBlock[i].print();
 		}
 	}
+}
+
+function createCheckRange() {
+	var blockInfo = gbo.getBlockInfo();
+	for (var i in blockInfo) {
+		var str = blockInfo[i].split(",");
+		var col = Number(str[1]);
+		if(tetrisArray[0][col] != '0')
+			return false;
+	}
+	return true;
 }
 
 function checkRange(key) {
@@ -285,7 +296,8 @@ function checkRange(key) {
 	        		booln = false;
 	            break;
 	        case 40:
-	        	if(bo[i].getRow() === maxRow)
+	        	if(bo[i].getRow() === maxRow || tetrisArray[bo[i].getRow()+1][bo[i].getCol()] != '0' ||
+	        			tetrisArray[bo[i].getRow()+1][bo[i].getCol()] == 'undefined')
 	        		booln = false;
 	            break;
 	        default:
@@ -298,17 +310,18 @@ function checkRange(key) {
 	return booln;
 }
 
-function actGroupBlock(bo, key) {
+function actGroupBlock(bo, key, movePoint) {
 	bo.removeNowLocation();
 	switch(key){
         case 37:
-       		bo.setLocation(0,-1);
+       		bo.setLocation(0,movePoint*-1);
             break;
         case 39:
-       		bo.setLocation(0,1);
+       		bo.setLocation(0,movePoint);
             break;
+        case 32:
         case 40:
-       		bo.setLocation(1,0);
+       		bo.setLocation(movePoint,0);
             break;
         default:
             direction = 'none';
@@ -323,9 +336,7 @@ function turnBlock() {
 	else gbo.setTurn(state+1);
 
 	var turnDatas = gbo.getTurnDatas(gbo.getTurn());
-	//console.log("turnDatas : ", turnDatas);
 	var groupBlock = gbo.getGroupInfo();
-	//console.log("groupBlock : ", groupBlock);
 	var addRow = 0;
 	var addCol = 0;
 	var booln = true;
@@ -333,34 +344,20 @@ function turnBlock() {
 		var cStr = turnDatas[i].split(",");
 		var cRow = groupBlock[i].getRow() + Number(cStr[0]);
 		var cCol = groupBlock[i].getCol() + Number(cStr[1]);
-		//console.log("1 : ", cRow, cCol);
 		if (tetrisArray[cRow][cCol] === 1 || cRow < 0 || cRow > maxRow ||
 				cCol < 0 || cCol > maxCol) {
 			booln = false;
-			//console.log("2 : ", cRow, cCol, booln);
 			break;
 		}
-		/*
-		if (col < 0) {
-			//addCol = 1;
-			break;
-		} else if (col > maxCol) {
-			//addCol = -1;
-			break;
-		}
-		 */
 	}
-	//console.log("3 : ", booln);
 	if (booln) {
 		for (var i=turnDatas.length-1; i>=0; i--) {
 			var str = turnDatas[i].split(",");
 			var row = Number(str[0]);
 			var col = Number(str[1]);
-			//console.log("b - ", groupBlock[i].getRow(), groupBlock[i].getCol(), " + ", row, col);
 			groupBlock[i].removeNowLocation();
 			groupBlock[i].setLocation(row, col);
 			groupBlock[i].print();
-			//console.log("a - ", groupBlock[i].getRow(), groupBlock[i].getCol());
 		}
 	} else {
 		gbo.setTurn(state);
@@ -389,7 +386,6 @@ function setArray() {
 	var groupBlock = gbo.getGroupInfo();
 	for (var i in groupBlock) {
 		var color = $('#'+groupBlock[i].getRow()+groupBlock[i].getCol()).css('background');
-		//console.log("color : ", color);
 		tetrisArray[groupBlock[i].getRow()][groupBlock[i].getCol()] = color;
 	}
 }
@@ -398,32 +394,7 @@ function checkBlock() {
 	var count = 0;
 	var start_point = -1;
 	var end_point = -1;
-	for (var i in tetrisArray) {
-		for (var j in tetrisArray[i]) {
-			if(tetrisArray[i][j] != '0')
-				count += 1;
-			if(count === maxCol+1) {
-				printPoint();
-				clearBlock(i);
-				if (start_point === -1) {
-					start_point = i;
-					end_point = i;
-				} else end_point = i;
-				break;
-			}
-		}
-		count = 0;
-	}
-	//console.log("check : ", start_point, end_point);
-	changeBlock(start_point, end_point);
-}
-
-function checkBlock_1() {
-	console.log();
-	var count = 0;
-	var start_point = -1;
-	var end_point = -1;
-	var point = 0;
+	var movePoint = 0;
 	var booln = false;
 	for (var i=tetrisArray.length-1; i>=0; i--) {
 		for (var j in tetrisArray[i]) {
@@ -432,6 +403,7 @@ function checkBlock_1() {
 			if(count === maxCol+1) {
 				if(booln) {
 					booln = false;
+					movePoint += start_point + 1 - end_point;
 					start_point = -1;
 					end_point = -1;
 				}
@@ -447,10 +419,8 @@ function checkBlock_1() {
 		}
 		if (count < maxCol+1 && start_point >= 0 && count > 0) {
 			booln = true;
-			console.log("check : ", start_point ,end_point, ", point : " + point);
-			changeBlock_1(i, start_point + 1 - end_point + point);
+			changeBlock(i, start_point + 1 - end_point + movePoint);
 		}
-		//break;
 		count = 0;
 	}
 }
@@ -462,39 +432,50 @@ function clearBlock(row) {
 	}
 }
 
-function changeBlock(start, end) {
-	//console.log("change : ", start, end);
-	for (var i=start-1; i>=0; i--) {
-		for (var j in tetrisArray[i]) {
-			if(tetrisArray[i][j] != '0') {
-				var color = tetrisArray[i][j];
-				tetrisArray[i][j] = '0';
-				//console.log("change rm : ", "#"+i+j);
-				$("#"+i+j).css('background', '');
-
-				tetrisArray[end][j] = color;
-				//console.log("change set : ", "#"+start+j);
-				$("#"+end+j).css('background', color);
-			}
-		}
-		end--;
-	}
-}
-
-function changeBlock_1(row, point) {
-	console.log("change : ", row, point);
+function changeBlock(row, point) {
 	for (var j in tetrisArray[row]) {
 		if(tetrisArray[row][j] != '0') {
 			var color = tetrisArray[row][j];
 			tetrisArray[row][j] = '0';
-			//console.log("change rm : ", "#"+i+j);
 			$("#"+row+j).css('background', '');
 
 			tetrisArray[row+point][j] = color;
-			//console.log("change set : ", "#"+start+j);
 			$("#"+(row+point)+j).css('background', color);
 		}
 	}
+}
+
+function theEndTetris() {
+	endGame = true;
+	for (var i in tetrisArray) {
+		for (var j in tetrisArray[i]) {
+			if(tetrisArray[i][j] != '0') {
+				tetrisArray[i][j] = 'rgb(102,102,102)';
+				$("#"+i+j).css('background', 'rgb(102,102,102)');
+			} else {
+				tetrisArray[i][j] = 'rgb(102,102,102)';
+				$("#"+i+j).css('background', 'rgb(204,204,204)');
+			}
+		}
+	}
+}
+
+function getMovePoint(groupBlock) {
+	var movePoint = maxRow;
+	for (var i in groupBlock) {
+		var row = groupBlock[i].getRow();
+		var col = groupBlock[i].getCol();
+		if (movePoint > maxRow - row)
+			movePoint = maxRow - row;
+		for (var j=row+1; j<=maxRow; j++) {
+			if (tetrisArray[j][col] != '0') {
+				if (movePoint > j - row - 1)
+					movePoint = j - row - 1;
+				break;
+			}
+		}
+	}
+	return movePoint;
 }
 
 function printPoint() {
