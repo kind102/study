@@ -252,13 +252,9 @@ function process(key) {
 	else setGroupBlock(key);
 
 	if (endGame === true) return false;
-	if (key > 32) {
-		setTimeout("newBlockTimeout()", 5000);
-	} else {
-		newBlock();
-		if (endGame === false)
-			checkBlock();
-	}
+	if (key === 32)
+		newBlockTimeout();
+	else setTimeout("newBlockTimeout()", 5000);
 }
 
 function newBlockTimeout() {
