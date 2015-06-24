@@ -48,6 +48,7 @@ var maxRow = 14;
 var maxCol = 8;
 var timerId;
 var endGame = false;
+var newBlockTimerId;
 
 for (var i=0; i<=maxRow; i++)
 	tetrisArray[i] = new Array('0','0','0','0','0','0','0','0','0');
@@ -249,6 +250,18 @@ function process(key) {
 	if (key === 38)
 		turnBlock();
 	else setGroupBlock(key);
+
+	if (endGame === true) return false;
+	if (key > 32) {
+		setTimeout("newBlockTimeout()", 5000);
+	} else {
+		newBlock();
+		if (endGame === false)
+			checkBlock();
+	}
+}
+
+function newBlockTimeout() {
 	newBlock();
 	if (endGame === false)
 		checkBlock();
@@ -344,7 +357,7 @@ function turnBlock() {
 		var cStr = turnDatas[i].split(",");
 		var cRow = groupBlock[i].getRow() + Number(cStr[0]);
 		var cCol = groupBlock[i].getCol() + Number(cStr[1]);
-		if (tetrisArray[cRow][cCol] === 1 || cRow < 0 || cRow > maxRow ||
+		if (tetrisArray[cRow][cCol] != '0' || cRow < 0 || cRow > maxRow ||
 				cCol < 0 || cCol > maxCol) {
 			booln = false;
 			break;
@@ -453,7 +466,7 @@ function theEndTetris() {
 				tetrisArray[i][j] = 'rgb(102,102,102)';
 				$("#"+i+j).css('background', 'rgb(102,102,102)');
 			} else {
-				tetrisArray[i][j] = 'rgb(102,102,102)';
+				tetrisArray[i][j] = 'rgb(204,204,204)';
 				$("#"+i+j).css('background', 'rgb(204,204,204)');
 			}
 		}
@@ -469,8 +482,9 @@ function getMovePoint(groupBlock) {
 			movePoint = maxRow - row;
 		for (var j=row+1; j<=maxRow; j++) {
 			if (tetrisArray[j][col] != '0') {
-				if (movePoint > j - row - 1)
-					movePoint = j - row - 1;
+				var value = j - row - 1;
+				if (movePoint > value)
+					movePoint = value;
 				break;
 			}
 		}
