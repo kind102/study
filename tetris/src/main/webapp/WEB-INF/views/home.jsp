@@ -1,8 +1,4 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-    pageEncoding="UTF-8"%>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <script type="text/javascript" src="http://code.jquery.com/jquery-2.1.0.min.js" ></script>
-<%@ page session="false" %>
 <html>
 <head>
 	<title>Home</title>
@@ -28,14 +24,6 @@ td {
 <div id="point"></div>
 <div id="end"></div>
 <table>
-	<c:forEach var="i" begin="0" step="1" end="14">
-		<tr>
-			<c:forEach var="j" begin="0" step="1" end="8">
-				<td id="${i}${j}">
-				</td>
-			</c:forEach>
-		</tr>
-	</c:forEach>
 </table>
 <span id="keyCode"></span>
 <span id="direction"></span>
@@ -43,17 +31,31 @@ td {
 </html>
 <script type="text/javascript">
 var tetrisArray = new Array();
+var tetrisColArray;
 var points = 0;
 var maxRow = 14;
 var maxCol = 8;
 var timerId;
+var timeoutId = 0;
 var endGame = false;
-var newBlockTimerId;
+var tableHtml = "";
 
-for (var i=0; i<=maxRow; i++)
-	tetrisArray[i] = new Array('0','0','0','0','0','0','0','0','0');
+function startTetris() {
+	for (var i=0; i<=maxRow; i++) {
+		tableHtml += "<tr>";
+		tetrisColArray = new Array();
+		for (var j=0; j<=maxCol; j++) {
+			tableHtml += "<td id="+i+j+">";
+			tetrisColArray.push('0');
+		}
+		tableHtml += "</tr>";
+		tetrisArray.push(tetrisColArray);
+	}
+}
+startTetris();
 
 $(function(){
+	$("table").html(tableHtml);
     $('html').keydown(function(e){
 		//console.log(e.which);
         var key = e.which;
@@ -252,13 +254,16 @@ function process(key) {
 	else setGroupBlock(key);
 
 	if (endGame === true) return false;
-	if (key === 32)
-		newBlockTimeout();
-	else setTimeout("newBlockTimeout()", 5000);
+
+	newBlock(key);
+	/* if (endGame === false)
+		checkBlock(); */
+	/* if (key === 32)
+	else setTimeout("newBlockTimeout()", 3000); */
 }
 
-function newBlockTimeout() {
-	newBlock();
+function newBlockTimeout(key) {
+	newBlock(key);
 	if (endGame === false)
 		checkBlock();
 }
@@ -373,22 +378,28 @@ function turnBlock() {
 	}
 }
 
-function newBlock() {
+function newBlock(key) {
 	var groupBlock = gbo.getGroupInfo();
 	for (var i in groupBlock) {
-		if (groupBlock[i].getRow() === maxRow) {
-			setArray();
-			createBlock();
-			break;
-		} else {
-			var postBlock = tetrisArray[groupBlock[i].getRow()+1][groupBlock[i].getCol()];
-			if(postBlock != '0') {
-				setArray();
-				createBlock();
-				break;
+		if (groupBlock[i].getRow() === maxRow || tetrisArray[groupBlock[i].getRow()+1][groupBlock[i].getCol()] != '0') {
+			if(key === 32) {
+				setBlock();
+			} else {
+				if (timeoutId === 0)
+					timeoutId = setTimeout("setBlock()", 1000);
 			}
+			break;
 		}
 	}
+}
+
+function setBlock() {
+	clearTimeout(timeoutId);
+	timeoutId = 0;
+	setArray();
+	createBlock();
+	if (endGame === false)
+		checkBlock();
 }
 
 function setArray() {
@@ -479,8 +490,7 @@ function getMovePoint(groupBlock) {
 		for (var j=row+1; j<=maxRow; j++) {
 			if (tetrisArray[j][col] != '0') {
 				var value = j - row - 1;
-				if (movePoint > value)
-					movePoint = value;
+				if (movePoint > value) movePoint = value;
 				break;
 			}
 		}
